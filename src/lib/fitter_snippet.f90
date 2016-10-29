@@ -29,12 +29,12 @@ endtype snippet
 
 interface snippet
   !< Overload [[snippet]] name with a creator procedure.
-  module procedure snippet_careator
+  module procedure snippet_creator
 endinterface snippet
 !-----------------------------------------------------------------------------------------------------------------------------------
 contains
   ! non TBP
-  pure function snippet_creator(self, name, number) result(snip)
+  pure function snippet_creator(name, number) result(snip)
   !---------------------------------------------------------------------------------------------------------------------------------
   !< Create a new instance of [[snippet]].
   !---------------------------------------------------------------------------------------------------------------------------------
@@ -45,9 +45,9 @@ contains
 
   !---------------------------------------------------------------------------------------------------------------------------------
   if (present(name)) then
-    self%name = name
+    snip%name = name
   elseif (present(number)) then
-    self%name = 'snippet-'//trim(str(number, .true.))
+    snip%name = 'snippet-'//trim(str(number, .true.))
   endif
   !---------------------------------------------------------------------------------------------------------------------------------
   endfunction snippet_creator
@@ -76,7 +76,7 @@ contains
   !---------------------------------------------------------------------------------------------------------------------------------
 
   !---------------------------------------------------------------------------------------------------------------------------------
-  print '(A)', 'Elapsed time into "'//self%name'": '//trim(str(self%time, .true.))//' [s]'
+  print '(A)', 'Elapsed time into "'//self%name//'": '//trim(str(self%time, .true.))//' [s]'
   !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine snippet_print
 
@@ -103,5 +103,5 @@ contains
   call system_clock(self%tic_toc(2), self%count_rate)
   self%time = real(self%tic_toc(2) - self%tic_toc(1), kind=R8P)/self%count_rate
   !---------------------------------------------------------------------------------------------------------------------------------
-  endsubroutine snippet_snippet
+  endsubroutine snippet_stop
 endmodule fitter_snippet
