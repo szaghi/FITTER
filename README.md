@@ -13,7 +13,7 @@
 
 ### FITTER, Fortran tIc Tic TimER
 
-> A KISS pure Fortran Library exposing a simple class pimped for easy code timing:
+> A KISS pure Fortran Library for easy *timing* code snippets.
 
 - FITTER is a pure Fortran (KISS) library;
 - FITTER is Fortran 2008+ standard compliant;
@@ -26,13 +26,13 @@
 use fitter
 type(timer) :: chronos ! The timer.
 
-call chronos%start(name='foo') ! 'name' is optional
+call chronos%tic(name='foo') ! 'name' is optional
 call foo
-call chronos%stop
+call chronos%toc
 
-call chronos%start(name='bar')
+call chronos%tic(name='bar')
 call bar
-call chronos%stop
+call chronos%toc
 
 ! print 'foo' timing
 call chronos%print(name='foo')
