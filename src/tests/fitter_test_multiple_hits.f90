@@ -1,5 +1,5 @@
 !< FITTER test.
-program fitter_test_times
+program fitter_test_multiple_hits
 !-----------------------------------------------------------------------------------------------------------------------------------
 !< FITTER test.
 !-----------------------------------------------------------------------------------------------------------------------------------
@@ -9,8 +9,8 @@ use fitter
 
 !-----------------------------------------------------------------------------------------------------------------------------------
 implicit none
-type(timer)               :: chronos  !< The timer.
-real(real64), allocatable :: times(:) !< Times tracked.
+type(timer) :: chronos !< The timer.
+integer     :: s       !< Counter.
 !-----------------------------------------------------------------------------------------------------------------------------------
 
 !-----------------------------------------------------------------------------------------------------------------------------------
@@ -18,19 +18,17 @@ call chronos%tic(name='foo')
 call foo
 call chronos%toc
 
-call chronos%tic(name='bar')
-call bar
+do s=1, 4
+  call chronos%tic(name='bar')
+  call bar
+  call chronos%toc
+enddo
+
+call chronos%tic(name='foo')
+call foo
 call chronos%toc
 
-call chronos%tic
-call bar
-call chronos%toc
-
-times = chronos%times()
-
-call chronos%clean
-
-print*, times
+call chronos%print(statistics=.true.)
 !-----------------------------------------------------------------------------------------------------------------------------------
 contains
   subroutine foo
@@ -62,4 +60,4 @@ contains
   enddo
   !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine bar
-endprogram fitter_test_times
+endprogram fitter_test_multiple_hits

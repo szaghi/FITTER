@@ -9,21 +9,21 @@ use fitter
 
 !-----------------------------------------------------------------------------------------------------------------------------------
 implicit none
-type(timer) :: chronos ! The timer.
+type(timer) :: chronos !< The timer.
 !-----------------------------------------------------------------------------------------------------------------------------------
 
 !-----------------------------------------------------------------------------------------------------------------------------------
-call chronos%start(name='foo')
+call chronos%tic(name='foo')
 call foo
-call chronos%stop
+call chronos%toc
 
-call chronos%start(name='bar')
+call chronos%tic(name='bar')
 call bar
-call chronos%stop
+call chronos%toc
 
-call chronos%start
+call chronos%tic
 call bar
-call chronos%stop
+call chronos%toc
 
 print '(A,F8.5,A)', 'Time spent in "foo": ', chronos%time(name='foo'), ' [s]'
 print '(A,F8.5,A)', 'Whole time spent: ', chronos%time(), ' [s]'

@@ -9,21 +9,21 @@ use fitter
 
 !-----------------------------------------------------------------------------------------------------------------------------------
 implicit none
-type(timer) :: chronos ! The timer.
+type(timer) :: chronos !< The timer.
 !-----------------------------------------------------------------------------------------------------------------------------------
 
 !-----------------------------------------------------------------------------------------------------------------------------------
-call chronos%start
+call chronos%tic
 call foo
-call chronos%stop
+call chronos%toc
 
-call chronos%start
+call chronos%tic
 call bar
-call chronos%stop
+call chronos%toc
 
-call chronos%start
+call chronos%tic
 call bar
-call chronos%stop
+call chronos%toc
 
 call chronos%print(statistics=.true.)
 !-----------------------------------------------------------------------------------------------------------------------------------

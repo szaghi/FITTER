@@ -19,19 +19,26 @@ type :: timer
   private
   type(snippet), allocatable :: snippets(:)         !< Snippets tracked.
   integer(I4P)               :: snippets_number=0   !< Snippets number.
+  integer(I4P)               :: snippet_current=0   !< Current snippet index.
   logical                    :: is_tracking=.false. !< Sentinel of tracking status.
   contains
     ! public methods
     procedure, pass(self) :: clean      => timer_clean      !< Clean timer.
     procedure, pass(self) :: print      => timer_print      !< Print time of a snippet or of all ones.
-    procedure, pass(self) :: start      => timer_start      !< Start a new snippet tracking.
     procedure, pass(self) :: statistics => timer_statistics !< Return timer statistics.
-    procedure, pass(self) :: stop       => timer_stop       !< Stop current tracking.
+    procedure, pass(self) :: tic        => timer_tic        !< Start a new snippet tracking.
     procedure, pass(self) :: time       => timer_time       !< Get time of a snippet or whole time.
     procedure, pass(self) :: times      => timer_times      !< Get time-array of all snippets.
+    procedure, pass(self) :: toc        => timer_toc        !< Stop current tracking.
+    ! private methods
+    procedure, pass(self), private :: add_snippet   => timer_add_snippet   !< Add new snippet.
+    procedure, pass(self), private :: snippet_index => timer_snippet_index !< Return the snippet index given the name.
 endtype timer
+
+character(1), parameter :: NL=new_line('a') !< New line character.
 !-----------------------------------------------------------------------------------------------------------------------------------
 contains
+  ! public methods
   elemental subroutine timer_clean(self)
   !---------------------------------------------------------------------------------------------------------------------------------
   !< Clean timer.
@@ -45,17 +52,19 @@ contains
     deallocate(self%snippets)
   endif
   self%snippets_number = 0
+  self%snippet_current = 0
   self%is_tracking = .false.
   !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine timer_clean
 
-  subroutine timer_print(self, name, statistics)
+  subroutine timer_print(self, name, statistics, zpad)
   !---------------------------------------------------------------------------------------------------------------------------------
   !< Print time of a snippet or of all ones.
   !---------------------------------------------------------------------------------------------------------------------------------
   class(timer), intent(in)           :: self       !< The timer.
   character(*), intent(in), optional :: name       !< Snippet name.
   logical,      intent(in), optional :: statistics !< Print statistics.
+  integer(I4P), intent(in), optional :: zpad       !< Zero padding for integer counters.
   integer(I4P)                       :: s          !< Counter
   !---------------------------------------------------------------------------------------------------------------------------------
 
@@ -74,47 +83,21 @@ contains
       enddo
     endif
     if (present(statistics)) then
-      if (statistics) print '(A)', self%statistics()
+      if (statistics) print '(A)', self%statistics(zpad=zpad)
     endif
   endif
   !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine timer_print
 
-  subroutine timer_start(self, name)
-  !---------------------------------------------------------------------------------------------------------------------------------
-  !< Start a new snippet tracking.
-  !---------------------------------------------------------------------------------------------------------------------------------
-  class(timer), intent(inout)        :: self        !< The timer.
-  character(*), intent(in), optional :: name        !< Snippet name.
-  type(snippet), allocatable         :: snippets(:) !< The new snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
-
-  !---------------------------------------------------------------------------------------------------------------------------------
-  if (self%is_tracking) error stop 'error: cannot start a new snippet tracking before stop the current'
-  if (self%snippets_number>0) then
-    allocate(snippets(1:self%snippets_number+1))
-    snippets(1:self%snippets_number) = self%snippets
-    snippets(self%snippets_number+1) = snippet(name=name, number=self%snippets_number+1)
-    call move_alloc(from=snippets, to=self%snippets)
-  else
-    allocate(self%snippets(1:1))
-    self%snippets(1) = snippet(name=name, number=self%snippets_number+1)
-  endif
-  self%snippets_number = self%snippets_number + 1
-  self%is_tracking = .true.
-  call self%snippets(self%snippets_number)%start
-  !---------------------------------------------------------------------------------------------------------------------------------
-  endsubroutine timer_start
-
-  function timer_statistics(self) result(statistics)
+  function timer_statistics(self, zpad) result(statistics)
   !---------------------------------------------------------------------------------------------------------------------------------
   !< Return timer statistics.
   !---------------------------------------------------------------------------------------------------------------------------------
-  class(timer), intent(in)      :: self             !< The timer.
-  character(len=:), allocatable :: statistics       !< Timer statistics.
-  real(R8P)                     :: time             !< Snippets whole time.
-  integer(I4P)                  :: s                !< Counter
-  character(1), parameter       :: nl=new_line('a') !< New line character.
+  class(timer), intent(in)           :: self       !< The timer.
+  integer(I4P), intent(in), optional :: zpad       !< Zero padding for integer counters.
+  character(len=:), allocatable      :: statistics !< Timer statistics.
+  real(R8P)                          :: time       !< Snippets whole time.
+  integer(I4P)                       :: s          !< Counter
   !---------------------------------------------------------------------------------------------------------------------------------
 
   !---------------------------------------------------------------------------------------------------------------------------------
@@ -122,30 +105,34 @@ contains
   statistics = ''
   if (self%snippets_number>0) then
     time = self%time()
-    statistics = 'Number of snippets tracked: '//trim(str(self%snippets_number, .true.))//nl
-    statistics = statistics//'Total elapsed time: '//trim(str(time, .true.))//' [s]'//nl
-    statistics = statistics//'Average (snippet) elapsed time: '//trim(str(time/self%snippets_number, .true.))//' [s]'//nl
-    statistics = statistics//'Relative elapsed time into each snippet:'//nl
+    statistics = 'Number of snippets tracked: '//trim(str(self%snippets_number, .true.))//NL
+    statistics = statistics//'Total elapsed time: '//trim(str(time, .true.))//' [s]'//NL
+    statistics = statistics//'Average (snippet) elapsed time: '//trim(str(time/self%snippets_number, .true.))//' [s]'//NL
+    statistics = statistics//'Relative elapsed time into each snippet:'//NL
     do s=1, self%snippets_number
-      statistics = statistics//'  + '//self%snippets(s)%name//': '//trim(str('(F6.3)', self%snippets(s)%time/time*100))//'%'//nl
+      statistics = statistics//'  + '//self%snippets(s)%name//': '//trim(str('(F6.3)', self%snippets(s)%time/time*100))//'%'//NL
+      if (self%snippets(s)%tic_toc_number()>1) statistics = statistics//self%snippets(s)%statistics(prefix='    ', zpad=zpad)
     enddo
   endif
   !---------------------------------------------------------------------------------------------------------------------------------
   endfunction timer_statistics
 
-  subroutine timer_stop(self)
+  subroutine timer_tic(self, name, zpad)
   !---------------------------------------------------------------------------------------------------------------------------------
-  !< Stop current tracking.
+  !< Start a new snippet tracking.
   !---------------------------------------------------------------------------------------------------------------------------------
-  class(timer), intent(inout) :: self !< The timer.
+  class(timer), intent(inout)        :: self !< The timer.
+  character(*), intent(in), optional :: name !< Snippet name.
+  integer(I4P), intent(in), optional :: zpad !< Zero padding for integer counter.
   !---------------------------------------------------------------------------------------------------------------------------------
 
   !---------------------------------------------------------------------------------------------------------------------------------
-  call self%snippets(self%snippets_number)%stop
-  if (.not.self%is_tracking) error stop 'error: there is not a snippet tracking to stop'
-  self%is_tracking = .false.
+  if (self%is_tracking) error stop 'error: cannot start a new snippet tracking before stop the current'
+  call self%add_snippet(name=name, zpad=zpad)
+  self%is_tracking = .true.
+  call self%snippets(self%snippet_current)%tic
   !---------------------------------------------------------------------------------------------------------------------------------
-  endsubroutine timer_stop
+  endsubroutine timer_tic
 
   function timer_time(self, name) result(time)
   !---------------------------------------------------------------------------------------------------------------------------------
@@ -183,7 +170,6 @@ contains
   !---------------------------------------------------------------------------------------------------------------------------------
   class(timer), intent(in) :: self     !< The timer.
   real(R8P), allocatable   :: times(:) !< Snippets time.
-  ! integer(I4P)             :: s        !< Counter
   !---------------------------------------------------------------------------------------------------------------------------------
 
   !---------------------------------------------------------------------------------------------------------------------------------
@@ -191,10 +177,87 @@ contains
   if (self%snippets_number>0) then
     allocate(times(1:self%snippets_number))
     times = self%snippets(:)%time
-    ! do s=1, self%snippets_number
-    !   time = time + self%snippets(s)%time
-    ! enddo
   endif
   !---------------------------------------------------------------------------------------------------------------------------------
   endfunction timer_times
+
+  subroutine timer_toc(self)
+  !---------------------------------------------------------------------------------------------------------------------------------
+  !< Stop current tracking.
+  !---------------------------------------------------------------------------------------------------------------------------------
+  class(timer), intent(inout) :: self !< The timer.
+  !---------------------------------------------------------------------------------------------------------------------------------
+
+  !---------------------------------------------------------------------------------------------------------------------------------
+  call self%snippets(self%snippet_current)%toc
+  if (.not.self%is_tracking) error stop 'error: there is not a snippet tracking to stop'
+  self%is_tracking = .false.
+  !---------------------------------------------------------------------------------------------------------------------------------
+  endsubroutine timer_toc
+
+  ! private methods
+  subroutine timer_add_snippet(self, name, zpad)
+  !---------------------------------------------------------------------------------------------------------------------------------
+  !< Add new snippet.
+  !---------------------------------------------------------------------------------------------------------------------------------
+  class(timer), intent(inout)        :: self        !< The timer.
+  character(*), intent(in), optional :: name        !< Snippet name.
+  integer(I4P), intent(in), optional :: zpad        !< Zero padding for integer counter.
+  type(snippet), allocatable         :: snippets(:) !< The new snippet.
+  character(len=:), allocatable      :: name_       !< Snippet name, local variable.
+  integer(I4P)                       :: zpad_       !< Zero padding for integer counter, local variable.
+  integer(I4P)                       :: s           !< Counter
+  !---------------------------------------------------------------------------------------------------------------------------------
+
+  !---------------------------------------------------------------------------------------------------------------------------------
+  zpad_ = 3 ; if (present(zpad)) zpad_ = zpad
+  name_ = 'snippet-'//trim(strz(self%snippets_number+1, zpad_)) ; if (present(name)) name_ = name
+  if (self%snippets_number>0) then
+    s = self%snippet_index(name=name_)
+    if (s==0) then
+      ! add new snippet
+      allocate(snippets(1:self%snippets_number+1))
+      snippets(1:self%snippets_number) = self%snippets
+      snippets(self%snippets_number+1) = snippet(name=name_)
+      call move_alloc(from=snippets, to=self%snippets)
+      self%snippets_number = self%snippets_number + 1
+      self%snippet_current = self%snippets_number
+    else
+      ! snippet alredy exist, just reset current snippet index
+      self%snippet_current = s
+    endif
+  else
+    ! there are not snippets at all, add the first one
+    allocate(self%snippets(1:1))
+    self%snippets(1) = snippet(name=name_)
+    self%snippets_number = self%snippets_number + 1
+    self%snippet_current = self%snippets_number
+  endif
+  !---------------------------------------------------------------------------------------------------------------------------------
+  endsubroutine timer_add_snippet
+
+  elemental function timer_snippet_index(self, name) result(snippet_index)
+  !---------------------------------------------------------------------------------------------------------------------------------
+  !< Return the snippet index given the name.
+  !<
+  !< Return 0 is not present
+  !---------------------------------------------------------------------------------------------------------------------------------
+  class(timer), intent(in) :: self          !< The timer.
+  character(*), intent(in) :: name          !< Snippet name.
+  integer(I4P)             :: snippet_index !< Snippet index, 0 is not present.
+  integer(I4P)             :: s             !< Counter
+  !---------------------------------------------------------------------------------------------------------------------------------
+
+  !---------------------------------------------------------------------------------------------------------------------------------
+  snippet_index = 0
+  if (self%snippets_number>0) then
+    do s=1, self%snippets_number
+      if (self%snippets(s)%name==name) then
+        snippet_index = s
+        exit
+      endif
+    enddo
+  endif
+  !---------------------------------------------------------------------------------------------------------------------------------
+  endfunction timer_snippet_index
 endmodule fitter
