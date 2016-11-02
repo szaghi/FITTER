@@ -25,26 +25,48 @@
 ```fortran
 use fitter
 type(timer) :: chronos ! The timer.
+integer     :: s       ! Counter.
 
-call chronos%tic(name='foo') ! 'name' is optional
+call chronos%tic(name='foo')
 call foo
 call chronos%toc
 
-call chronos%tic(name='bar')
-call bar
+do s=1, 4
+  call chronos%tic(name='bar')
+  call bar
+  call chronos%toc
+enddo
+
+call chronos%tic(name='foo')
+call foo
 call chronos%toc
 
-! print 'foo' timing
-call chronos%print(name='foo')
+call chronos%print(statistics=.true.)
 
-! print all timings
-call chronos%print
+! output:
 
-! directly retrieve elasped times (in seconds)
-print '(A,I5)', 'Time (seconds) spent in "foo": ', chronos%time(name='foo') ! 'name' is optional
-
-! clean all timer data
-call chronos%clean
+! Elapsed time into "foo": 0.603904970000000E-001 [s]
+! Elapsed time into "bar": 0.103229564000000E+000 [s]
+! Number of snippets tracked: 2
+! Total elapsed time: 0.163620061000000E+000 [s]
+! Average (snippet) elapsed time: 0.818100305000000E-001 [s]
+! Relative elapsed time into each snippet:
+!   + foo: 36.909%
+!     Number of snippet hits: 2
+!     Total elapsed time: 0.603904970000000E-001 [s]
+!     Average elapsed time: 0.301952485000000E-001 [s]
+!     Relative elapsed time into each hit:
+!       + 001: 70.932%
+!       + 002: 29.068%
+!   + bar: 63.091%
+!     Number of snippet hits: 4
+!     Total elapsed time: 0.103229564000000E+000 [s]
+!     Average elapsed time: 0.258073910000000E-001 [s]
+!     Relative elapsed time into each hit:
+!       + 001: 23.667%
+!       + 002: 25.264%
+!       + 003: 25.527%
+!       + 004: 25.542%
 ```
 
 #### Issues
@@ -77,13 +99,14 @@ call chronos%clean
 
 > FITTER is a *one-single-class* library exposing the `timer` object that
 
-+ [ ] handle (automatically store) new profile for each snippet (part) of the code timed;
-+ [ ] easy print statistics;
-+ [ ] easy retrieve timings;
-* [ ] Test Driven Developed (TDD);
-* [ ] collaborative developed;
++ [x] handle (automatically store) new timing for each snippet timed:
+    + [x] handle (automatically store) multiple timing for each snippet timed, namely allow multiple-hits tracking of snippets:
++ [x] easy print statistics;
++ [x] easy retrieve timings;
+* [x] Test Driven Developed (TDD);
+* [x] collaborative developed;
 * [ ] well documented;
-* [ ] free!
+* [x] free!
 
 Any feature request is welcome.
 
@@ -124,7 +147,7 @@ A `fobos` file is provided to build the project by means of the Fortran Building
 Type
 
 ```shell
-FoBiS.py build
+FoBiS.py build -mode tests-gnu
 ```
 
 After (a successful) building a directory `./exe` is created containing all the compiled programs found recursively in the tree project.
@@ -144,5 +167,7 @@ Go to [Top](#top)
 ## Documentation
 
 Besides this README file the FITTER documentation is contained into its own [wiki](https://github.com/szaghi/FITTER/wiki). Detailed documentation of the API is contained into the [GitHub Pages](http://szaghi.github.io/FITTER/index.html) that can also be created locally by means of [ford tool](https://github.com/cmacmackin/ford).
+
+To be completed.
 
 Go to [Top](#top)
