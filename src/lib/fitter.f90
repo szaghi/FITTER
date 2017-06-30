@@ -1,50 +1,39 @@
 !< FITTER, Fortran tIc Toc TimER
 
 module fitter_snippet
-!-----------------------------------------------------------------------------------------------------------------------------------
 !< FITTER **snippet** class.
-!-----------------------------------------------------------------------------------------------------------------------------------
 use penf
-!-----------------------------------------------------------------------------------------------------------------------------------
 
-!-----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
 public :: snippet
-!-----------------------------------------------------------------------------------------------------------------------------------
 
-!-----------------------------------------------------------------------------------------------------------------------------------
 type :: snippet
-  !< **Snippet** class.
-  character(len=:), allocatable      :: name              !< Name of the snippet.
-  real(R8P)                          :: time=0._R8P       !< Elapsed time in the snippet.
-  integer(I8P), private, allocatable :: tic_toc_(:,:)     !< Tic toc storage.
-  integer(I8P), private              :: count_rate_=0     !< Count rate.
-  integer(I8P), private              :: tic_toc_number_=0 !< Tic toc pairs number.
-  contains
-    ! public methods
-    procedure, pass(self) :: add_timing     => snippet_add_timing     !< Add timing data to the snippet.
-    procedure, pass(self) :: clean          => snippet_clean          !< Clean snippet.
-    procedure, pass(self) :: print          => snippet_print          !< Print time of the snippet.
-    procedure, pass(self) :: statistics     => snippet_statistics     !< Return snippet statistics.
-    procedure, pass(self) :: tic_toc_number => snippet_tic_toc_number !< Return tic toc pairs number.
+   !< **Snippet** class.
+   character(len=:), allocatable      :: name              !< Name of the snippet.
+   real(R8P)                          :: time=0._R8P       !< Elapsed time in the snippet.
+   integer(I8P), private, allocatable :: tic_toc_(:,:)     !< Tic toc storage.
+   integer(I8P), private              :: count_rate_=0     !< Count rate.
+   integer(I8P), private              :: tic_toc_number_=0 !< Tic toc pairs number.
+   contains
+      ! public methods
+      procedure, pass(self) :: add_timing     => snippet_add_timing     !< Add timing data to the snippet.
+      procedure, pass(self) :: clean          => snippet_clean          !< Clean snippet.
+      procedure, pass(self) :: print          => snippet_print          !< Print time of the snippet.
+      procedure, pass(self) :: statistics     => snippet_statistics     !< Return snippet statistics.
+      procedure, pass(self) :: tic_toc_number => snippet_tic_toc_number !< Return tic toc pairs number.
 endtype snippet
 
 character(1), parameter :: NL=new_line('a') !< New line character.
-!-----------------------------------------------------------------------------------------------------------------------------------
 contains
   ! public methods
   subroutine snippet_add_timing(self, tic_toc, count_rate)
-  !---------------------------------------------------------------------------------------------------------------------------------
   !< Add timing data to the snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
   class(snippet), intent(inout) :: self          !< The snippet.
   integer(I8P),   intent(in)    :: tic_toc(1:)   !< Snippet timing.
   integer(I8P),   intent(in)    :: count_rate    !< Snippet count rate.
   integer(I8P), allocatable     :: tic_toc_(:,:) !< Tic toc storage.
-  !---------------------------------------------------------------------------------------------------------------------------------
 
-  !---------------------------------------------------------------------------------------------------------------------------------
   if (self%tic_toc_number_>0) then
     allocate(tic_toc_(1:2, 1:self%tic_toc_number_+1))
     tic_toc_(:, 1:self%tic_toc_number_) = self%tic_toc_
@@ -58,41 +47,28 @@ contains
   self%count_rate_ = count_rate
   self%time = self%time + &
               real(self%tic_toc_(2, self%tic_toc_number_) - self%tic_toc_(1, self%tic_toc_number_), kind=R8P)/self%count_rate_
-  !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine snippet_add_timing
 
   elemental subroutine snippet_clean(self)
-  !---------------------------------------------------------------------------------------------------------------------------------
   !< Clean snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
   class(snippet), intent(inout) :: self !< The snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
 
-  !---------------------------------------------------------------------------------------------------------------------------------
   if (allocated(self%name)) deallocate(self%name)
   self%time = 0._R8P
   if (allocated(self%tic_toc_)) deallocate(self%tic_toc_)
   self%count_rate_ = 0
   self%tic_toc_number_ = 0
-  !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine snippet_clean
 
   subroutine snippet_print(self)
-  !---------------------------------------------------------------------------------------------------------------------------------
   !< Print time of the snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
   class(snippet), intent(in) :: self !< The snippet.
-  !---------------------------------------------------------------------------------------------------------------------------------
 
-  !---------------------------------------------------------------------------------------------------------------------------------
   print '(A)', 'Elapsed time into "'//self%name//'": '//trim(str(self%time, .true.))//' [s]'
-  !---------------------------------------------------------------------------------------------------------------------------------
   endsubroutine snippet_print
 
   pure function snippet_statistics(self, prefix, zpad) result(statistics)
-  !---------------------------------------------------------------------------------------------------------------------------------
   !< Return snippet statistics.
-  !---------------------------------------------------------------------------------------------------------------------------------
   class(snippet), intent(in)           :: self       !< The timer.
   character(*),   intent(in), optional :: prefix     !< Prefixing string.
   integer(I4P),   intent(in), optional :: zpad       !< Zero padding of hits number counter.
@@ -101,9 +77,7 @@ contains
   real(R8P)                            :: time       !< Snippets whole time.
   integer(I4P)                         :: zpad_      !< Zero padding of hits number counter, local variable.
   integer(I4P)                         :: h          !< Counter
-  !---------------------------------------------------------------------------------------------------------------------------------
 
-  !---------------------------------------------------------------------------------------------------------------------------------
   prefix_ = '' ; if (present(prefix)) prefix_ = prefix
   zpad_ = 3 ; if (present(zpad)) zpad_ = zpad
   statistics = ''
@@ -118,20 +92,14 @@ contains
     enddo
     statistics = statistics//NL
   endif
-  !---------------------------------------------------------------------------------------------------------------------------------
   endfunction snippet_statistics
 
   elemental function snippet_tic_toc_number(self) result(tic_toc_number)
-  !---------------------------------------------------------------------------------------------------------------------------------
   !< Return snippet statistics.
-  !---------------------------------------------------------------------------------------------------------------------------------
   class(snippet), intent(in) :: self           !< The timer.
   integer(I4P)               :: tic_toc_number !< Tic toc pairs number.
-  !---------------------------------------------------------------------------------------------------------------------------------
 
-  !---------------------------------------------------------------------------------------------------------------------------------
   tic_toc_number = self%tic_toc_number_
-  !---------------------------------------------------------------------------------------------------------------------------------
   endfunction snippet_tic_toc_number
 endmodule fitter_snippet
 
