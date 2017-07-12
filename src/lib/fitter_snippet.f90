@@ -11,6 +11,7 @@ public :: snippet
 type :: snippet
    !< **Snippet** class.
    character(len=:), allocatable      :: name              !< Name of the snippet.
+   integer(I4P)                       :: level=0_I4P       !< Level of snippet nesting.
    real(R8P)                          :: time=0._R8P       !< Elapsed time in the snippet.
    integer(I8P), private, allocatable :: tic_toc_(:,:)     !< Tic toc storage.
    integer(I8P), private              :: count_rate_=0     !< Count rate.
@@ -20,6 +21,8 @@ type :: snippet
       procedure, pass(self) :: analyze        !< Analyze snippet timing data.
       procedure, pass(self) :: clean          !< Clean snippet.
       procedure, pass(self) :: description    !< Return pretty formatted snippet description string.
+      procedure, pass(self) :: last_tic       !< Return last tic value.
+      procedure, pass(self) :: last_toc       !< Return last toc value.
       procedure, pass(self) :: statistics     !< Return snippet statistics.
       procedure, pass(self) :: tic            !< Add new tic to the snippet.
       procedure, pass(self) :: tic_toc_number !< Return tic toc pairs number.
@@ -47,6 +50,7 @@ contains
    class(snippet), intent(inout) :: self !< The snippet.
 
    if (allocated(self%name)) deallocate(self%name)
+   self%level = 0_I4P
    self%time = 0._R8P
    if (allocated(self%tic_toc_)) deallocate(self%tic_toc_)
    self%count_rate_ = 0
@@ -63,27 +67,49 @@ contains
    character(len=:), allocatable          :: prefix_ !< Prefixing string, local variable.
 
    prefix_ = '' ; if (present(prefix)) prefix_ = prefix
-   desc = prefix_//'elapsed time into "'//self%name//'": '//trim(str(self%time, .true.))//' [s]'
+   desc = prefix_//'elapsed time into "'//self%name//'" (level='//trim(str(self%level, no_sign=.true.))//'): '//&
+          trim(str(self%time, .true.))//' [s]'
    endfunction description
 
-   pure function statistics(self, prefix, zpad)
+   elemental function last_tic(self)
+   !< Return last tic value.
+   class(snippet), intent(in) :: self     !< The timer.
+   integer(I8P)               :: last_tic !< Last tic value.
+
+   last_tic = 0
+   if (self%tic_toc_number_ > 0) last_tic = self%tic_toc_(1, self%tic_toc_number_)
+   endfunction last_tic
+
+   elemental function last_toc(self)
+   !< Return last toc value.
+   class(snippet), intent(in) :: self     !< The timer.
+   integer(I8P)               :: last_toc !< Last toc value.
+
+   last_toc = 0
+   if (self%tic_toc_number_ > 0) last_toc = self%tic_toc_(2, self%tic_toc_number_)
+   endfunction last_toc
+
+   pure function statistics(self, prefix, zpad, hits_time)
    !< Return snippet statistics.
    !<
    !< @note Snippet data must be already analyzed before calling this method.
    class(snippet), intent(in)           :: self       !< The timer.
    character(*),   intent(in), optional :: prefix     !< Prefixing string.
    integer(I4P),   intent(in), optional :: zpad       !< Zero padding of hits number counter.
+   logical,        intent(in), optional :: hits_time  !< Add relative time consumed for each snippet hit.
    character(len=:), allocatable        :: statistics !< Timer statistics.
    character(len=:), allocatable        :: prefix_    !< Prefixing string, local variable.
    real(R8P)                            :: time       !< Snippets whole time.
    integer(I4P)                         :: zpad_      !< Zero padding of hits number counter, local variable.
+   logical                              :: hits_time_ !< Add relative time consumed for each snippet hit, local variable.
    integer(I4P)                         :: h          !< Counter
 
    prefix_ = '' ; if (present(prefix)) prefix_ = prefix
    zpad_ = 3 ; if (present(zpad)) zpad_ = zpad
+   hits_time_ = .false. ; if (present(hits_time)) hits_time_ = hits_time
    statistics = ''
-   if (self%tic_toc_number_ > 0) then
-      statistics = prefix_//'number of snippet hits: '//trim(str(self%tic_toc_number_, .true.))
+   if (self%tic_toc_number_ > 0 .and. hits_time_) then
+      statistics = NL//prefix_//'number of snippet hits: '//trim(str(self%tic_toc_number_, .true.))
       statistics = statistics//NL//prefix_//'total elapsed time: '//trim(str(self%time, .true.))//' [s]'
       statistics = statistics//NL//prefix_//'average elapsed time: '//trim(str(self%time/self%tic_toc_number_, .true.))//' [s]'
       statistics = statistics//NL//prefix_//'relative elapsed time into each hit:'
@@ -91,7 +117,6 @@ contains
          time = real(self%tic_toc_(2, h) - self%tic_toc_(1, h), kind=R8P) / self%count_rate_
          statistics = statistics//NL//prefix_//'  + '//trim(strz(h, zpad_))//': '//trim(str('(F7.3)', time/self%time*100))//'%'
       enddo
-      statistics = statistics//NL
    endif
    endfunction statistics
 

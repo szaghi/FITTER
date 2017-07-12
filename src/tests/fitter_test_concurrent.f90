@@ -1,6 +1,6 @@
 !< FITTER test.
 
-program fitter_test_multiple_hits
+program fitter_test_concurrent
 !< FITTER test.
 use, intrinsic :: iso_fortran_env, only : real64
 use fitter
@@ -11,19 +11,25 @@ integer     :: s       !< Counter.
 
 call chronos%tic(name='foo')
 call foo
-call chronos%toc
-
 do s=1, 4
    call chronos%tic(name='bar')
    call bar
    call chronos%toc
 enddo
-
-call chronos%tic(name='foo')
-call foo
+do s=1, 8
+   call chronos%tic(name='baz')
+   call bar
+   call chronos%tic(name='brr')
+   call bar
+   call chronos%toc
+   call chronos%toc
+enddo
 call chronos%toc
 
 call chronos%analyze
+print '(A)', chronos%description(statistics=.true.)
+
+print '(A)', new_line('a')//'COMPLETE STATISTICS'//new_line('a')
 print '(A)', chronos%description(statistics=.true., hits_time=.true.)
 contains
    subroutine foo
@@ -45,4 +51,4 @@ contains
       r = i**0.3
    enddo
    endsubroutine bar
-endprogram fitter_test_multiple_hits
+endprogram fitter_test_concurrent
